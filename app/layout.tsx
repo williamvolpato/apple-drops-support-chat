@@ -1,3 +1,5 @@
+import './globals.css';
+
 export const metadata = {
   title: 'Apple Drops - Support',
   description: 'Chat interface for customer support',
