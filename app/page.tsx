@@ -1,61 +1,82 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react';
 
-export default function SupportPanel() {
-  const [messages, setMessages] = useState<{ sender: string; text: string }[]>([])
-  const [newMessage, setNewMessage] = useState('')
+interface Message {
+  sender: string;
+  text: string;
+}
 
-  // Carrega mensagens da API ao iniciar
+export default function SupportPage() {
+  const [messages, setMessages] = useState<Record<string, Message[]>>({});
+  const [newMessages, setNewMessages] = useState<Record<string, string>>({});
+
   useEffect(() => {
-    fetch('/api/messages')
-      .then((res) => res.json())
-      .then((data) => setMessages(data))
-      .catch((err) => console.error('Erro ao carregar mensagens:', err))
-  }, [])
+    const fetchMessages = async () => {
+      const res = await fetch('/api/messages');
+      const data = await res.json();
+      setMessages(data);
+    };
 
-  const sendMessage = () => {
-    if (newMessage.trim()) {
-      const updatedMessages = [...messages, { sender: 'Suporte', text: newMessage }]
-      setMessages(updatedMessages)
-      setNewMessage('')
-      // (Opcional) enviar nova mensagem para uma API no futuro
-    }
-  }
+    fetchMessages();
+    const interval = setInterval(fetchMessages, 5000); // atualiza a cada 5s
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const sendMessage = async (phone: string) => {
+    const text = newMessages[phone]?.trim();
+    if (!text) return;
+
+    await fetch('/api/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, text }),
+    });
+
+    setNewMessages((prev) => ({ ...prev, [phone]: '' }));
+  };
 
   return (
-    <main style={{ maxWidth: 600, margin: '0 auto', fontFamily: 'sans-serif' }}>
+    <main style={{ padding: 20, fontFamily: 'sans-serif' }}>
       <h1>Apple Drops - Suporte via SMS</h1>
-      <div style={{ backgroundColor: '#f1f1f1', padding: '1rem', borderRadius: 8 }}>
-        {messages.map((msg, i) => (
+      {Object.entries(messages).map(([phone, msgs]) => (
+        <div key={phone} style={{ marginBottom: 40 }}>
+          <h3>Cliente: {phone}</h3>
           <div
-            key={i}
             style={{
-              textAlign: msg.sender === 'Suporte' ? 'right' : 'left',
-              margin: '0.5rem 0',
-              backgroundColor: msg.sender === 'Suporte' ? '#daf1ff' : '#ffffff',
-              padding: '0.5rem 1rem',
-              borderRadius: 10,
-              display: 'inline-block',
-              maxWidth: '80%',
+              backgroundColor: '#f4f4f4',
+              padding: 10,
+              borderRadius: 8,
+              maxWidth: 500,
             }}
           >
-            <strong>{msg.sender}</strong>: {msg.text}
+            {msgs.map((msg, i) => (
+              <p key={i}>
+                <strong>{msg.sender === 'Suporte' ? 'Suporte' : 'Cliente'}:</strong>{' '}
+                {msg.text}
+              </p>
+            ))}
           </div>
-        ))}
-      </div>
-
-      <div style={{ marginTop: '1rem', display: 'flex', gap: 8 }}>
-        <input
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          placeholder="Digite uma resposta..."
-          style={{ flex: 1, padding: '0.5rem' }}
-        />
-        <button onClick={sendMessage} style={{ padding: '0.5rem 1rem' }}>
-          Enviar
-        </button>
-      </div>
+          <div style={{ marginTop: 10 }}>
+            <input
+              type="text"
+              placeholder="Digite uma resposta..."
+              value={newMessages[phone] || ''}
+              onChange={(e) =>
+                setNewMessages((prev) => ({ ...prev, [phone]: e.target.value }))
+              }
+              style={{ padding: 6, width: '70%' }}
+            />
+            <button
+              onClick={() => sendMessage(phone)}
+              style={{ marginLeft: 8, padding: '6px 12px' }}
+            >
+              Enviar
+            </button>
+          </div>
+        </div>
+      ))}
     </main>
-  )
+  );
 }
