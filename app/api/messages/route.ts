@@ -1,27 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-let chats = new Map()
+const chats = new Map<string, { sender: string; text: string }[]>()
 
-export async function POST(req: NextRequest) {
-  const data = await req.formData()
-  const from = data.get('From')?.toString()
-  const body = data.get('Body')?.toString()
-
-  if (!from || !body) {
-    return NextResponse.json({ error: 'Missing From or Body' }, { status: 400 })
-  }
-
-  if (!chats.has(from)) {
-    chats.set(from, [])
-  }
-
-  chats.get(from).push({ sender: from, text: body })
-  chats.get(from).push({ sender: 'Suporte', text: 'Hi! I can help you complete your order.' })
-
-  return NextResponse.json({ success: true })
+export function storeMessage(phone: string, sender: string, text: string) {
+  if (!chats.has(phone)) chats.set(phone, [])
+  chats.get(phone)!.push({ sender, text })
 }
 
-export async function GET() {
-  const all = Array.from(chats.entries()).flatMap(([sender, msgs]) => msgs)
-  return NextResponse.json(all)
+export async function GET(req: NextRequest) {
+  const ordered = Array.from(chats.entries())
+    .sort((a, b) => {
+      const lastA = a[1].at(-1)
+      const lastB = b[1].at(-1)
+      return lastB?.text?.localeCompare(lastA?.text || '') || 0
+    })
+    .reduce((acc, [phone, msgs]) => {
+      acc[phone] = msgs
+      return acc
+    }, {} as Record<string, { sender: string; text: string }[]>)
+
+  return NextResponse.json(ordered)
 }
