@@ -11,6 +11,7 @@ interface Message {
 
 export default function Home() {
   const router = useRouter()
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [selectedSender, setSelectedSender] = useState<string | null>(null)
@@ -23,6 +24,7 @@ export default function Home() {
       router.push('/login')
       return
     }
+    setIsAuthenticated(true)
 
     const storedResolved = localStorage.getItem('resolvedSenders')
     const storedRead = localStorage.getItem('readSenders')
@@ -104,6 +106,9 @@ export default function Home() {
   const filteredMessages = selectedSender
     ? messages.filter(m => m.sender === selectedSender || m.sender === 'Suporte')
     : []
+
+  if (isAuthenticated === null) return null
+  if (isAuthenticated === false) return <p>Redirecionando para login...</p>
 
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: 'sans-serif' }}>
