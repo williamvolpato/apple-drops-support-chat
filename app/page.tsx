@@ -1,136 +1,105 @@
-'use client'
-
 import { useEffect, useState } from 'react'
+import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 
-type Message = {
+interface Message {
   sender: string
   text: string
-  timestamp?: string
+  timestamp: string
+  unread?: boolean
 }
 
 export default function Home() {
-  const [messages, setMessages] = useState<Record<string, Message[]>>({})
-  const [selected, setSelected] = useState<string | null>(null)
+  const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
-  const [unreadClients, setUnreadClients] = useState<Set<string>>(new Set())
+  const [selectedSender, setSelectedSender] = useState<string | null>(null)
+  const [resolvedSenders, setResolvedSenders] = useState<string[]>([])
 
   useEffect(() => {
     const fetchMessages = async () => {
       const res = await fetch('/api/messages')
       const data = await res.json()
-
-      // Detecta mensagens novas
-      for (const phone in data) {
-        if (!messages[phone]) {
-          setUnreadClients((prev) => new Set(prev).add(phone))
-        } else if (data[phone].length > messages[phone]?.length) {
-          setUnreadClients((prev) => new Set(prev).add(phone))
-        }
-      }
-
-      setMessages(data)
+      setMessages(data.messages || [])
     }
 
     fetchMessages()
     const interval = setInterval(fetchMessages, 5000)
     return () => clearInterval(interval)
-  }, [messages])
+  }, [])
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !selected) return
+    if (!newMessage.trim()) return
+    if (!selectedSender) return
 
-    const res = await fetch('/api/send', {
+    const response = await fetch('/api/send', {
       method: 'POST',
+      body: JSON.stringify({ to: selectedSender, message: newMessage }),
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to: selected, message: newMessage }),
     })
 
-    if (res.ok) {
-      const updated = { ...messages }
-      updated[selected] = [
-        ...(updated[selected] || []),
-        {
-          sender: 'Suporte',
-          text: newMessage,
-          timestamp: new Date().toISOString(),
-        },
-      ]
-      setMessages(updated)
-      setNewMessage('')
+    const data = await response.json()
+    console.log('Twilio response:', data)
+
+    setMessages([...messages, { sender: 'Suporte', text: newMessage, timestamp: new Date().toISOString() }])
+    setNewMessage('')
+  }
+
+  const unreadMap: Record<string, boolean> = {}
+  messages.forEach(msg => {
+    if (msg.sender !== 'Suporte' && !resolvedSenders.includes(msg.sender)) {
+      unreadMap[msg.sender] = true
     }
-  }
+  })
 
-  const formatTimestamp = (timestamp?: string) => {
-    if (!timestamp) return ''
-    const date = new Date(timestamp)
-    return date.toLocaleString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  }
+  const uniqueSenders = Array.from(new Set(messages.map(m => m.sender))).filter(sender => !resolvedSenders.includes(sender))
 
-  const handleSelectClient = (phone: string) => {
-    setSelected(phone)
-    setUnreadClients((prev) => {
-      const updated = new Set(prev)
-      updated.delete(phone)
-      return updated
-    })
-  }
+  const filteredMessages = selectedSender
+    ? messages.filter(m => m.sender === selectedSender || m.sender === 'Suporte')
+    : []
 
   return (
-    <div style={{ display: 'flex', height: '100vh' }}>
-      <div style={{ width: 250, borderRight: '1px solid #ccc', padding: 10 }}>
-        <h3>Clientes</h3>
-        {Object.keys(messages).length === 0 ? (
-          <p>Nenhuma conversa iniciada.</p>
-        ) : (
-          Object.keys(messages).map((phone) => (
-            <div
-              key={phone}
-              onClick={() => handleSelectClient(phone)}
-              style={{
-                padding: 5,
-                cursor: 'pointer',
-                backgroundColor: selected === phone ? '#eee' : 'transparent',
-                fontWeight: unreadClients.has(phone) ? 'bold' : 'normal',
-              }}
-            >
-              {phone}
-              {unreadClients.has(phone) && ' (nova)'}
-            </div>
-          ))
-        )}
+    <div className="flex h-screen">
+      <div className="w-1/3 bg-gray-100 p-4 overflow-y-auto">
+        <h2 className="text-lg font-bold mb-2">Clientes</h2>
+        {uniqueSenders.map(sender => (
+          <div
+            key={sender}
+            className={`p-2 cursor-pointer rounded-lg ${selectedSender === sender ? 'bg-blue-300' : 'hover:bg-blue-100'} ${unreadMap[sender] ? 'font-bold' : ''}`}
+            onClick={() => {
+              setSelectedSender(sender)
+              unreadMap[sender] = false
+            }}
+          >
+            {sender}
+          </div>
+        ))}
       </div>
-      <div style={{ flex: 1, padding: 20 }}>
-        <h2>Apple Drops - Suporte via SMS</h2>
-        {selected ? (
-          <>
-            <p><strong>Conversa com:</strong> {selected}</p>
-            {messages[selected]?.map((msg, idx) => (
-              <div key={idx} style={{ marginBottom: 10 }}>
-                <strong>{msg.sender}:</strong> {msg.text}
-                <div style={{ fontSize: '0.8rem', color: '#666' }}>
-                  {formatTimestamp(msg.timestamp)}
-                </div>
-              </div>
-            ))}
-            <div style={{ display: 'flex', marginTop: 10 }}>
-              <input
-                type="text"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Digite sua resposta..."
-                style={{ flex: 1, marginRight: 10 }}
-              />
-              <button onClick={sendMessage}>Enviar</button>
-            </div>
-          </>
-        ) : (
-          <p>Selecione um número para visualizar a conversa.</p>
+
+      <div className="w-2/3 flex flex-col p-4">
+        <div className="flex-1 overflow-y-auto">
+          {filteredMessages.map((msg, idx) => (
+            <Card key={idx} className="mb-2">
+              <CardContent className="p-2">
+                <p><strong>{msg.sender}</strong> <span className="text-sm text-gray-500">({new Date(msg.timestamp).toLocaleString()})</span></p>
+                <p>{msg.text}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        {selectedSender && (
+          <div className="mt-4 flex gap-2">
+            <Input
+              placeholder="Digite sua mensagem..."
+              value={newMessage}
+              onChange={e => setNewMessage(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && sendMessage()}
+            />
+            <Button onClick={sendMessage}>Enviar</Button>
+            <Button variant="destructive" onClick={() => setResolvedSenders([...resolvedSenders, selectedSender])}>
+              Marcar como resolvido
+            </Button>
+          </div>
         )}
       </div>
     </div>
