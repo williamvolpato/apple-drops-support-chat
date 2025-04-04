@@ -9,7 +9,6 @@ interface Message {
   sender: string
   text: string
   timestamp: string
-  unread?: boolean
 }
 
 export default function Home() {
@@ -22,7 +21,16 @@ export default function Home() {
     const fetchMessages = async () => {
       const res = await fetch('/api/messages')
       const data = await res.json()
-      setMessages(data.messages || [])
+      const allMessages: Message[] = []
+
+      for (const phone in data.messages) {
+        allMessages.push(...data.messages[phone].map((msg: Message) => ({
+          ...msg,
+          sender: msg.sender === 'Cliente' ? phone : 'Suporte'
+        })))
+      }
+
+      setMessages(allMessages)
     }
 
     fetchMessages()
@@ -31,19 +39,19 @@ export default function Home() {
   }, [])
 
   const sendMessage = async () => {
-    if (!newMessage.trim()) return
-    if (!selectedSender) return
+    if (!newMessage.trim() || !selectedSender) return
 
-    const response = await fetch('/api/send', {
+    await fetch('/api/send', {
       method: 'POST',
       body: JSON.stringify({ to: selectedSender, message: newMessage }),
       headers: { 'Content-Type': 'application/json' },
     })
 
-    const data = await response.json()
-    console.log('Twilio response:', data)
-
-    setMessages([...messages, { sender: 'Suporte', text: newMessage, timestamp: new Date().toISOString() }])
+    setMessages([...messages, {
+      sender: 'Suporte',
+      text: newMessage,
+      timestamp: new Date().toISOString()
+    }])
     setNewMessage('')
   }
 
@@ -54,7 +62,9 @@ export default function Home() {
     }
   })
 
-  const uniqueSenders = Array.from(new Set(messages.map(m => m.sender))).filter(sender => !resolvedSenders.includes(sender))
+  const uniqueSenders = Array.from(
+    new Set(messages.map(m => m.sender).filter(s => s !== 'Suporte'))
+  ).filter(sender => !resolvedSenders.includes(sender))
 
   const filteredMessages = selectedSender
     ? messages.filter(m => m.sender === selectedSender || m.sender === 'Suporte')
@@ -83,12 +93,16 @@ export default function Home() {
           {filteredMessages.map((msg, idx) => (
             <Card key={idx} className="mb-2">
               <CardContent className="p-2">
-                <p><strong>{msg.sender}</strong> <span className="text-sm text-gray-500">({new Date(msg.timestamp).toLocaleString()})</span></p>
+                <p>
+                  <strong>{msg.sender}</strong>{' '}
+                  <span className="text-sm text-gray-500">({new Date(msg.timestamp).toLocaleString()})</span>
+                </p>
                 <p>{msg.text}</p>
               </CardContent>
             </Card>
           ))}
         </div>
+
         {selectedSender && (
           <div className="mt-4 flex gap-2">
             <Input
@@ -106,4 +120,4 @@ export default function Home() {
       </div>
     </div>
   )
-} 
+}
