@@ -11,6 +11,7 @@
     "next": "latest",
     "react": "latest",
     "react-dom": "latest"
+    "twilio": "^4.0.0"
   },
 "devDependencies": {
   "typescript": "^5.3.3",
