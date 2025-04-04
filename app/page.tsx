@@ -16,15 +16,30 @@ export default function Home() {
   const [unreadSenders, setUnreadSenders] = useState<Set<string>>(new Set())
 
   useEffect(() => {
+    const storedResolved = localStorage.getItem('resolvedSenders')
+    const storedRead = localStorage.getItem('readSenders')
+
+    if (storedResolved) setResolvedSenders(JSON.parse(storedResolved))
+    if (storedRead) setUnreadSenders(new Set(JSON.parse(storedRead)))
+  }, [])
+
+  useEffect(() => {
     const fetchMessages = async () => {
       const res = await fetch('/api/messages')
       const data = await res.json()
       const allMessages = Object.values(data.messages || {}).flat() as Message[]
       setMessages(allMessages)
 
+      const storedRead = localStorage.getItem('readSenders')
+      const readSet = storedRead ? new Set(JSON.parse(storedRead)) : new Set()
+
       const unread = new Set<string>()
       allMessages.forEach(msg => {
-        if (msg.sender !== 'Suporte' && !resolvedSenders.includes(msg.sender)) {
+        if (
+          msg.sender !== 'Suporte' &&
+          !resolvedSenders.includes(msg.sender) &&
+          !readSet.has(msg.sender)
+        ) {
           unread.add(msg.sender)
         }
       })
@@ -52,11 +67,32 @@ export default function Home() {
     setNewMessage('')
   }
 
+  const markAsResolved = () => {
+    if (!selectedSender) return
+    const updated = [...resolvedSenders, selectedSender]
+    setResolvedSenders(updated)
+    localStorage.setItem('resolvedSenders', JSON.stringify(updated))
+    setSelectedSender(null)
+  }
+
+  const clearConversation = () => {
+    if (!selectedSender) return
+    const storedRead = localStorage.getItem('readSenders')
+    const readSet = storedRead ? new Set(JSON.parse(storedRead)) : new Set()
+    readSet.add(selectedSender)
+    localStorage.setItem('readSenders', JSON.stringify(Array.from(readSet)))
+    setUnreadSenders(prev => {
+      const updated = new Set(prev)
+      updated.delete(selectedSender)
+      return updated
+    })
+    setSelectedSender(null)
+  }
+
   const uniqueSenders = Array.from(new Set(
-    messages
-      .filter(m => m.sender !== 'Suporte') // remove 'Suporte' da lista
-      .map(m => m.sender)
-)).filter(sender => !resolvedSenders.includes(sender))
+    messages.filter(m => m.sender !== 'Suporte').map(m => m.sender)
+  )).filter(sender => !resolvedSenders.includes(sender))
+
   const filteredMessages = selectedSender
     ? messages.filter(m => m.sender === selectedSender || m.sender === 'Suporte')
     : []
@@ -77,6 +113,10 @@ export default function Home() {
             key={sender}
             onClick={() => {
               setSelectedSender(sender)
+              const storedRead = localStorage.getItem('readSenders')
+              const readSet = storedRead ? new Set(JSON.parse(storedRead)) : new Set()
+              readSet.add(sender)
+              localStorage.setItem('readSenders', JSON.stringify(Array.from(readSet)))
               setUnreadSenders(prev => {
                 const copy = new Set(prev)
                 copy.delete(sender)
@@ -135,10 +175,7 @@ export default function Home() {
                 Enviar
               </button>
               <button
-                onClick={() => {
-                  setResolvedSenders([...resolvedSenders, selectedSender])
-                  setSelectedSender(null)
-                }}
+                onClick={markAsResolved}
                 style={{
                   padding: '0.5rem 1rem',
                   backgroundColor: '#dc3545',
@@ -149,7 +186,7 @@ export default function Home() {
                 Marcar como resolvido
               </button>
               <button
-                onClick={() => setSelectedSender(null)}
+                onClick={clearConversation}
                 style={{
                   padding: '0.5rem 1rem',
                   backgroundColor: '#6c757d',
