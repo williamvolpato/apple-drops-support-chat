@@ -12,18 +12,29 @@ export default function Home() {
   const [messages, setMessages] = useState<Record<string, Message[]>>({})
   const [selected, setSelected] = useState<string | null>(null)
   const [newMessage, setNewMessage] = useState('')
+  const [unreadClients, setUnreadClients] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     const fetchMessages = async () => {
       const res = await fetch('/api/messages')
       const data = await res.json()
+
+      // Detecta mensagens novas
+      for (const phone in data) {
+        if (!messages[phone]) {
+          setUnreadClients((prev) => new Set(prev).add(phone))
+        } else if (data[phone].length > messages[phone]?.length) {
+          setUnreadClients((prev) => new Set(prev).add(phone))
+        }
+      }
+
       setMessages(data)
     }
 
     fetchMessages()
     const interval = setInterval(fetchMessages, 5000)
     return () => clearInterval(interval)
-  }, [])
+  }, [messages])
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !selected) return
@@ -61,6 +72,15 @@ export default function Home() {
     })
   }
 
+  const handleSelectClient = (phone: string) => {
+    setSelected(phone)
+    setUnreadClients((prev) => {
+      const updated = new Set(prev)
+      updated.delete(phone)
+      return updated
+    })
+  }
+
   return (
     <div style={{ display: 'flex', height: '100vh' }}>
       <div style={{ width: 250, borderRight: '1px solid #ccc', padding: 10 }}>
@@ -71,15 +91,16 @@ export default function Home() {
           Object.keys(messages).map((phone) => (
             <div
               key={phone}
-              onClick={() => setSelected(phone)}
+              onClick={() => handleSelectClient(phone)}
               style={{
                 padding: 5,
                 cursor: 'pointer',
                 backgroundColor: selected === phone ? '#eee' : 'transparent',
-                fontWeight: selected === phone ? 'bold' : 'normal',
+                fontWeight: unreadClients.has(phone) ? 'bold' : 'normal',
               }}
             >
               {phone}
+              {unreadClients.has(phone) && ' (nova)'}
             </div>
           ))
         )}
