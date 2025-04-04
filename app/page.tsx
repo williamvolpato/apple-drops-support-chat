@@ -52,8 +52,11 @@ export default function Home() {
     setNewMessage('')
   }
 
-  const uniqueSenders = Array.from(new Set(messages.map(m => m.sender)))
-    .filter(sender => !resolvedSenders.includes(sender))
+  const uniqueSenders = Array.from(new Set(
+    messages
+      .filter(m => m.sender !== 'Suporte') // remove 'Suporte' da lista
+      .map(m => m.sender)
+)).filter(sender => !resolvedSenders.includes(sender))
   const filteredMessages = selectedSender
     ? messages.filter(m => m.sender === selectedSender || m.sender === 'Suporte')
     : []
