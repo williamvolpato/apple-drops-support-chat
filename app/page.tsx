@@ -9,7 +9,6 @@ interface Message {
   sender: string
   text: string
   timestamp: string
-  unread?: boolean
 }
 
 export default function Home() {
@@ -17,18 +16,29 @@ export default function Home() {
   const [newMessage, setNewMessage] = useState('')
   const [selectedSender, setSelectedSender] = useState<string | null>(null)
   const [resolvedSenders, setResolvedSenders] = useState<string[]>([])
+  const [unreadSenders, setUnreadSenders] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     const fetchMessages = async () => {
       const res = await fetch('/api/messages')
       const data = await res.json()
-      setMessages(Object.values(data.messages).flat() as Message[])
+
+      const allMessages: Message[] = Object.values(data.messages || {}).flat()
+      setMessages(allMessages)
+
+      const unread = new Set<string>()
+      allMessages.forEach(msg => {
+        if (msg.sender !== 'Suporte' && !resolvedSenders.includes(msg.sender)) {
+          unread.add(msg.sender)
+        }
+      })
+      setUnreadSenders(unread)
     }
 
     fetchMessages()
     const interval = setInterval(fetchMessages, 5000)
     return () => clearInterval(interval)
-  }, [])
+  }, [resolvedSenders])
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedSender) return
@@ -42,69 +52,64 @@ export default function Home() {
     const data = await response.json()
     console.log('Twilio response:', data)
 
-    setMessages([
-      ...messages,
-      { sender: 'Suporte', text: newMessage, timestamp: new Date().toISOString() },
-    ])
+    const newMsg: Message = {
+      sender: 'Suporte',
+      text: newMessage,
+      timestamp: new Date().toISOString(),
+    }
+
+    setMessages(prev => [...prev, newMsg])
     setNewMessage('')
   }
 
-  const unreadMap: Record<string, boolean> = {}
-  messages.forEach(msg => {
-    if (msg.sender !== 'Suporte' && !resolvedSenders.includes(msg.sender)) {
-      unreadMap[msg.sender] = true
-    }
-  })
-
-  const uniqueSenders = Array.from(new Set(messages.map(m => m.sender)))
-    .filter(sender => !resolvedSenders.includes(sender))
+  const uniqueSenders = Array.from(new Set(messages.map(m => m.sender))).filter(
+    sender => sender !== 'Suporte' && !resolvedSenders.includes(sender)
+  )
 
   const filteredMessages = selectedSender
-    ? messages.filter(m => m.sender === selectedSender || m.sender === 'Suporte')
+    ? messages.filter(m => m.sender === selectedSender || (m.sender === 'Suporte' && selectedSender))
     : []
 
   return (
-    <div className="flex h-screen font-sans bg-white">
-      {/* Painel lateral - lista de clientes */}
-      <div className="w-1/4 bg-gray-100 p-4 border-r overflow-y-auto">
-        <h2 className="text-lg font-bold mb-4">Clientes</h2>
-        {uniqueSenders.length === 0 && (
-          <p className="text-sm text-gray-500">Nenhuma conversa ativa.</p>
-        )}
+    <div className="flex h-screen">
+      {/* Coluna esquerda - Números */}
+      <div className="w-1/3 bg-gray-100 p-4 overflow-y-auto">
+        <h2 className="text-lg font-bold mb-2">Clientes</h2>
         {uniqueSenders.map(sender => (
           <div
             key={sender}
-            className={`p-2 rounded-md mb-2 cursor-pointer ${
-              selectedSender === sender ? 'bg-blue-300 font-bold' : 'hover:bg-blue-100'
-            }`}
-            onClick={() => setSelectedSender(sender)}
+            className={`p-2 cursor-pointer rounded-lg ${selectedSender === sender ? 'bg-blue-300' : 'hover:bg-blue-100'} ${unreadSenders.has(sender) ? 'font-bold' : ''}`}
+            onClick={() => {
+              setSelectedSender(sender)
+              setUnreadSenders(prev => {
+                const updated = new Set(prev)
+                updated.delete(sender)
+                return updated
+              })
+            }}
           >
             {sender}
           </div>
         ))}
       </div>
 
-      {/* Painel direito - conversa do cliente */}
-      <div className="flex-1 flex flex-col p-6">
+      {/* Coluna direita - Conversa */}
+      <div className="w-2/3 flex flex-col p-4">
         {selectedSender ? (
           <>
-            <div className="flex-1 overflow-y-auto mb-4 space-y-2">
+            <h2 className="text-xl font-bold mb-2">Conversando com: {selectedSender}</h2>
+            <div className="flex-1 overflow-y-auto mb-4">
               {filteredMessages.map((msg, idx) => (
-                <Card key={idx}>
-                  <CardContent className="p-3">
-                    <p className="text-sm text-gray-600 mb-1">
-                      <strong>{msg.sender}</strong> —{' '}
-                      <span>{new Date(msg.timestamp).toLocaleString()}</span>
-                    </p>
+                <Card key={idx} className="mb-2">
+                  <CardContent className="p-2">
+                    <p><strong>{msg.sender}</strong> — {new Date(msg.timestamp).toLocaleString()}</p>
                     <p>{msg.text}</p>
                   </CardContent>
                 </Card>
               ))}
             </div>
-
             <div className="flex gap-2">
               <Input
-                className="flex-1"
                 placeholder="Digite sua mensagem..."
                 value={newMessage}
                 onChange={e => setNewMessage(e.target.value)}
@@ -113,16 +118,17 @@ export default function Home() {
               <Button onClick={sendMessage}>Enviar</Button>
               <Button
                 variant="destructive"
-                onClick={() => setResolvedSenders([...resolvedSenders, selectedSender])}
+                onClick={() => {
+                  setResolvedSenders([...resolvedSenders, selectedSender])
+                  setSelectedSender(null)
+                }}
               >
                 Marcar como resolvido
               </Button>
             </div>
           </>
         ) : (
-          <div className="flex items-center justify-center flex-1 text-gray-500">
-            Selecione um cliente à esquerda para iniciar a conversa.
-          </div>
+          <p className="text-gray-500">Selecione um cliente para ver a conversa</p>
         )}
       </div>
     </div>
