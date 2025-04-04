@@ -69,3 +69,13 @@ export async function updateReadSenders(list: string[]) {
   data.readSenders = list
   await writeData(data)
 }
+
+// Reseta todos os dados do chat
+export async function resetData() {
+  const emptyData: ChatData = {
+    messages: {},
+    resolvedSenders: [],
+    readSenders: []
+  }
+  await writeData(emptyData)
+}
