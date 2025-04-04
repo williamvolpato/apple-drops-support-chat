@@ -15,7 +15,7 @@ export function getChats(): Record<string, Message[]> {
     .sort((a, b) => {
       const lastA = a[1].at(-1)
       const lastB = b[1].at(-1)
-      return lastB?.text?.localeCompare(lastA?.text || '') || 0
+      return lastB?.text.localeCompare(lastA?.text || '') || 0
     })
     .reduce((acc, [phone, msgs]) => {
       acc[phone] = msgs
