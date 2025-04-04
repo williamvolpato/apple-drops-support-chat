@@ -13,7 +13,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Missing From or Body' }, { status: 400 })
   }
 
-  await storeMessage({ sender: From, text: Body, timestamp: new Date().toISOString() })
+  await storeMessage(From, 'Cliente', Body)
 
   return NextResponse.json({ success: true })
 }
