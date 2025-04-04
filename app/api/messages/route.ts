@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server'
 import { storeMessage, getMessages } from '@/lib/chatStore'
 
 export async function GET() {
-  const messages = await getMessages()
-  return NextResponse.json(messages)
+  const messages = getMessages()
+  return NextResponse.json({ messages })
 }
 
 export async function POST(req: Request) {
