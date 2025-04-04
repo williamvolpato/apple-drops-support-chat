@@ -1,105 +1,75 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-
-type Message = {
-  sender: string
-  text: string
-}
-
-type ChatMap = {
-  [phone: string]: Message[]
-}
+import { useEffect, useState } from 'react';
 
 export default function Home() {
-  const [chats, setChats] = useState<ChatMap>({})
-  const [selectedPhone, setSelectedPhone] = useState<string | null>(null)
-  const [newMessage, setNewMessage] = useState('')
+  const [messages, setMessages] = useState<Record<string, { sender: string; text: string; timestamp: string }[]>>({})
+  const [selected, setSelected] = useState<string | null>(null)
+  const [input, setInput] = useState('')
+
+  const fetchMessages = async () => {
+    const res = await fetch('/api/messages')
+    const data = await res.json()
+    setMessages(data)
+  }
 
   useEffect(() => {
-    const fetchMessages = async () => {
-      const res = await fetch('/api/messages')
-      const data = await res.json()
-      setChats(data)
-    }
-
     fetchMessages()
     const interval = setInterval(fetchMessages, 5000)
     return () => clearInterval(interval)
   }, [])
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedPhone) return
-
-    const res = await fetch('/api/send', {
+    if (!input.trim() || !selected) return
+    await fetch('/api/send', {
       method: 'POST',
+      body: JSON.stringify({ to: selected, message: input }),
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to: selectedPhone, message: newMessage }),
     })
-
-    const data = await res.json()
-    if (data.success) {
-      setChats((prev) => ({
-        ...prev,
-        [selectedPhone]: [...(prev[selectedPhone] || []), { sender: 'Suporte', text: newMessage }],
-      }))
-      setNewMessage('')
-    }
+    setMessages((prev) => ({
+      ...prev,
+      [selected]: [...(prev[selected] || []), { sender: 'Suporte', text: input, timestamp: new Date().toISOString() }],
+    }))
+    setInput('')
   }
-
-  const phones = Object.keys(chats).sort((a, b) => {
-    const lastA = chats[a]?.at(-1)
-    const lastB = chats[b]?.at(-1)
-    return lastB?.text?.localeCompare(lastA?.text || '') || 0
-  })
 
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: 'sans-serif' }}>
-      <div style={{ width: '250px', borderRight: '1px solid #ccc', padding: '10px' }}>
-        <h3>Clientes</h3>
-        {phones.length === 0 && <p style={{ fontSize: '0.9em' }}>Nenhuma conversa iniciada.</p>}
-        {phones.map((phone) => (
-          <div
-            key={phone}
-            onClick={() => setSelectedPhone(phone)}
-            style={{
-              cursor: 'pointer',
-              padding: '5px',
-              background: phone === selectedPhone ? '#eee' : 'transparent',
-              fontWeight: phone === selectedPhone ? 'bold' : 'normal',
-              borderRadius: '4px',
-              marginBottom: '4px',
-            }}
-          >
-            {phone}
-          </div>
-        ))}
+      <div style={{ width: 200, borderRight: '1px solid #ccc', padding: 10 }}>
+        <strong>Clientes</strong>
+        <ul style={{ listStyle: 'none', padding: 0 }}>
+          {Object.keys(messages).map((phone) => (
+            <li
+              key={phone}
+              style={{ cursor: 'pointer', margin: '5px 0', fontWeight: phone === selected ? 'bold' : 'normal' }}
+              onClick={() => setSelected(phone)}
+            >
+              {phone}
+            </li>
+          ))}
+        </ul>
       </div>
-      <div style={{ flex: 1, padding: '20px' }}>
+      <div style={{ flex: 1, padding: 20 }}>
         <h2>Apple Drops - Suporte via SMS</h2>
-        {selectedPhone ? (
+        {selected ? (
           <>
-            <div style={{ marginBottom: '15px', fontSize: '0.9em' }}>
-              Conversa com: <strong>{selectedPhone}</strong>
-            </div>
-            <div style={{ marginBottom: '20px' }}>
-              {chats[selectedPhone]?.map((msg, i) => (
-                <div key={i}>
-                  <strong>{msg.sender === 'Suporte' ? 'Suporte' : 'Cliente'}:</strong> {msg.text}
-                </div>
+            <p><strong>Conversa com:</strong> {selected}</p>
+            <div>
+              {(messages[selected] || []).map((msg, i) => (
+                <p key={i}>
+                  <strong>{msg.sender}:</strong> {msg.text} <span style={{ color: '#888', fontSize: '0.8em' }}>({new Date(msg.timestamp).toLocaleString()})</span>
+                </p>
               ))}
             </div>
-            <div>
+            <div style={{ marginTop: 10 }}>
               <input
                 type="text"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
                 placeholder="Digite sua resposta..."
-                style={{ padding: '6px', width: '70%' }}
+                style={{ width: '70%', marginRight: 10 }}
               />
-              <button onClick={sendMessage} style={{ padding: '6px 12px', marginLeft: '10px' }}>
-                Enviar
-              </button>
+              <button onClick={sendMessage}>Enviar</button>
             </div>
           </>
         ) : (
