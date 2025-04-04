@@ -1,73 +1,109 @@
-"use client";
+'use client'
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react'
+
+type Message = {
+  sender: string
+  text: string
+  timestamp?: string
+}
 
 export default function Home() {
-  const [messages, setMessages] = useState<Record<string, { sender: string; text: string; timestamp: string }[]>>({})
+  const [messages, setMessages] = useState<Record<string, Message[]>>({})
   const [selected, setSelected] = useState<string | null>(null)
-  const [input, setInput] = useState('')
-
-  const fetchMessages = async () => {
-    const res = await fetch('/api/messages')
-    const data = await res.json()
-    setMessages(data)
-  }
+  const [newMessage, setNewMessage] = useState('')
 
   useEffect(() => {
+    const fetchMessages = async () => {
+      const res = await fetch('/api/messages')
+      const data = await res.json()
+      setMessages(data)
+    }
+
     fetchMessages()
     const interval = setInterval(fetchMessages, 5000)
     return () => clearInterval(interval)
   }, [])
 
   const sendMessage = async () => {
-    if (!input.trim() || !selected) return
-    await fetch('/api/send', {
+    if (!newMessage.trim() || !selected) return
+
+    const res = await fetch('/api/send', {
       method: 'POST',
-      body: JSON.stringify({ to: selected, message: input }),
       headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: selected, message: newMessage }),
     })
-    setMessages((prev) => ({
-      ...prev,
-      [selected]: [...(prev[selected] || []), { sender: 'Suporte', text: input, timestamp: new Date().toISOString() }],
-    }))
-    setInput('')
+
+    if (res.ok) {
+      const updated = { ...messages }
+      updated[selected] = [
+        ...(updated[selected] || []),
+        {
+          sender: 'Suporte',
+          text: newMessage,
+          timestamp: new Date().toISOString(),
+        },
+      ]
+      setMessages(updated)
+      setNewMessage('')
+    }
+  }
+
+  const formatTimestamp = (timestamp?: string) => {
+    if (!timestamp) return ''
+    const date = new Date(timestamp)
+    return date.toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
   }
 
   return (
-    <div style={{ display: 'flex', height: '100vh', fontFamily: 'sans-serif' }}>
-      <div style={{ width: 200, borderRight: '1px solid #ccc', padding: 10 }}>
-        <strong>Clientes</strong>
-        <ul style={{ listStyle: 'none', padding: 0 }}>
-          {Object.keys(messages).map((phone) => (
-            <li
+    <div style={{ display: 'flex', height: '100vh' }}>
+      <div style={{ width: 250, borderRight: '1px solid #ccc', padding: 10 }}>
+        <h3>Clientes</h3>
+        {Object.keys(messages).length === 0 ? (
+          <p>Nenhuma conversa iniciada.</p>
+        ) : (
+          Object.keys(messages).map((phone) => (
+            <div
               key={phone}
-              style={{ cursor: 'pointer', margin: '5px 0', fontWeight: phone === selected ? 'bold' : 'normal' }}
               onClick={() => setSelected(phone)}
+              style={{
+                padding: 5,
+                cursor: 'pointer',
+                backgroundColor: selected === phone ? '#eee' : 'transparent',
+                fontWeight: selected === phone ? 'bold' : 'normal',
+              }}
             >
               {phone}
-            </li>
-          ))}
-        </ul>
+            </div>
+          ))
+        )}
       </div>
       <div style={{ flex: 1, padding: 20 }}>
         <h2>Apple Drops - Suporte via SMS</h2>
         {selected ? (
           <>
             <p><strong>Conversa com:</strong> {selected}</p>
-            <div>
-              {(messages[selected] || []).map((msg, i) => (
-                <p key={i}>
-                  <strong>{msg.sender}:</strong> {msg.text} <span style={{ color: '#888', fontSize: '0.8em' }}>({new Date(msg.timestamp).toLocaleString()})</span>
-                </p>
-              ))}
-            </div>
-            <div style={{ marginTop: 10 }}>
+            {messages[selected]?.map((msg, idx) => (
+              <div key={idx} style={{ marginBottom: 10 }}>
+                <strong>{msg.sender}:</strong> {msg.text}
+                <div style={{ fontSize: '0.8rem', color: '#666' }}>
+                  {formatTimestamp(msg.timestamp)}
+                </div>
+              </div>
+            ))}
+            <div style={{ display: 'flex', marginTop: 10 }}>
               <input
                 type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
                 placeholder="Digite sua resposta..."
-                style={{ width: '70%', marginRight: 10 }}
+                style={{ flex: 1, marginRight: 10 }}
               />
               <button onClick={sendMessage}>Enviar</button>
             </div>
