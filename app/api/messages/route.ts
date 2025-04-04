@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server'
 import { storeMessage, getMessages } from '@/lib/chatStore'
+import fs from 'fs/promises'
+import path from 'path'
+
+const dataPath = path.join(process.cwd(), 'data/chatData.json')
 
 export async function GET() {
   const messages = await getMessages()
@@ -13,7 +17,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Missing From or Body' }, { status: 400 })
   }
 
-  storeMessage(From, 'Cliente', Body)
+  await storeMessage(From, 'Cliente', Body)
 
   return NextResponse.json({ success: true })
 }
