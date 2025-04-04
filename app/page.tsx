@@ -20,10 +20,22 @@ export default function Home() {
 
   useEffect(() => {
     const session = localStorage.getItem('authEmail')
-    if (session !== 'sms@happierpd.com') {
+    const loginDate = localStorage.getItem('loginDate')
+
+    const now = new Date().getTime()
+    const limit = 24 * 60 * 60 * 1000 // 24h
+
+    if (
+      session !== 'sms@happierpd.com' ||
+      !loginDate ||
+      now - parseInt(loginDate) > limit
+    ) {
+      localStorage.removeItem('authEmail')
+      localStorage.removeItem('loginDate')
       router.push('/login')
       return
     }
+
     setIsAuthenticated(true)
 
     const storedResolved = localStorage.getItem('resolvedSenders')
@@ -75,6 +87,12 @@ export default function Home() {
       { sender: 'Suporte', text: newMessage, timestamp: new Date().toISOString() },
     ])
     setNewMessage('')
+  }
+
+  const logout = () => {
+    localStorage.removeItem('authEmail')
+    localStorage.removeItem('loginDate')
+    router.push('/login')
   }
 
   const markAsResolved = () => {
@@ -151,6 +169,15 @@ export default function Home() {
       </div>
 
       <div style={{ flex: 1, padding: '1rem', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+          <button
+            onClick={logout}
+            style={{ padding: '0.5rem 1rem', backgroundColor: '#999', color: '#fff', border: 'none' }}
+          >
+            Sair
+          </button>
+        </div>
+
         {selectedSender ? (
           <>
             <h2 style={{ fontWeight: 'bold', marginBottom: '1rem' }}>
