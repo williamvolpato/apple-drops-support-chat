@@ -20,18 +20,9 @@ export default function Home() {
 
   useEffect(() => {
     const fetchMessages = async () => {
-      try {
-        const res = await fetch('/api/messages')
-        const data = await res.json()
-        console.log('Mensagens carregadas:', data)
-        const allMessages = Object.entries(data.messages || {}).flatMap(([sender, msgs]) =>
-          (msgs as Message[]).map(msg => ({ ...msg, sender }))
-        )
-        console.log('Mensagens formatadas:', allMessages)
-        setMessages(allMessages)
-      } catch (error) {
-        console.error('Erro ao carregar mensagens:', error)
-      }
+      const res = await fetch('/api/messages')
+      const data = await res.json()
+      setMessages(Object.values(data.messages).flat())
     }
 
     fetchMessages()
@@ -39,8 +30,22 @@ export default function Home() {
     return () => clearInterval(interval)
   }, [])
 
+  const unreadMap: Record<string, boolean> = {}
+  messages.forEach(msg => {
+    if (msg.sender !== 'Suporte' && !resolvedSenders.includes(msg.sender)) {
+      unreadMap[msg.sender] = true
+    }
+  })
+
+  const uniqueSenders = Array.from(new Set(messages.map(m => m.sender))).filter(sender => !resolvedSenders.includes(sender))
+
+  const filteredMessages = selectedSender
+    ? messages.filter(m => m.sender === selectedSender || m.sender === 'Suporte')
+    : []
+
   const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedSender) return
+    if (!newMessage.trim()) return
+    if (!selectedSender) return
 
     const response = await fetch('/api/send', {
       method: 'POST',
@@ -51,27 +56,9 @@ export default function Home() {
     const data = await response.json()
     console.log('Twilio response:', data)
 
-    setMessages([...messages, {
-      sender: 'Suporte',
-      text: newMessage,
-      timestamp: new Date().toISOString()
-    }])
+    setMessages([...messages, { sender: 'Suporte', text: newMessage, timestamp: new Date().toISOString() }])
     setNewMessage('')
   }
-
-  const unreadMap: Record<string, boolean> = {}
-  messages.forEach(msg => {
-    if (msg.sender !== 'Suporte' && !resolvedSenders.includes(msg.sender)) {
-      unreadMap[msg.sender] = true
-    }
-  })
-
-  const uniqueSenders = Array.from(new Set(messages.map(m => m.sender)))
-  // .filter(sender => !resolvedSenders.includes(sender)) // comentado temporariamente para debug
-
-  const filteredMessages = selectedSender
-    ? messages.filter(m => m.sender === selectedSender || m.sender === 'Suporte')
-    : []
 
   return (
     <div className="flex h-screen">
@@ -96,7 +83,10 @@ export default function Home() {
           {filteredMessages.map((msg, idx) => (
             <Card key={idx} className="mb-2">
               <CardContent className="p-2">
-                <p><strong>{msg.sender}</strong> <span className="text-sm text-gray-500">({new Date(msg.timestamp).toLocaleString()})</span></p>
+                <p>
+                  <strong>{msg.sender}</strong>{' '}
+                  <span className="text-sm text-gray-500">({new Date(msg.timestamp).toLocaleString()})</span>
+                </p>
                 <p>{msg.text}</p>
               </CardContent>
             </Card>
