@@ -10,12 +10,12 @@
   "dependencies": {
     "next": "latest",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
     "twilio": "^4.0.0"
   },
-"devDependencies": {
-  "typescript": "^5.3.3",
-  "@types/react": "^18.2.24",
-  "@types/node": "^20.11.17"
-}
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "@types/react": "^18.2.24",
+    "@types/node": "^20.11.17"
+  }
 }
