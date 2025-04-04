@@ -13,7 +13,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Missing From or Body' }, { status: 400 })
   }
 
-  await storeMessage(From, 'Cliente', Body)
+  storeMessage(From, 'Cliente', Body)
 
   return NextResponse.json({ success: true })
 }
