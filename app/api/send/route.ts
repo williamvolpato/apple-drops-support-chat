@@ -1,26 +1,28 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { Twilio } from 'twilio'
+import { storeMessage } from '@/lib/chatStore'
 
-export async function POST(req: Request) {
-  const body = await req.json()
-  const { to, message } = body
+const accountSid = process.env.TWILIO_ACCOUNT_SID!
+const authToken = process.env.TWILIO_AUTH_TOKEN!
+const fromPhone = process.env.TWILIO_PHONE!
 
-  const accountSid = process.env.TWILIO_ACCOUNT_SID!
-  const authToken = process.env.TWILIO_AUTH_TOKEN!
-  const from = process.env.TWILIO_PHONE_NUMBER!
+const client = new Twilio(accountSid, authToken)
 
-  const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
-    method: 'POST',
-    headers: {
-      Authorization: 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64'),
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({
-      To: to,
-      From: from,
-      Body: message,
-    }),
-  })
+export async function POST(req: NextRequest) {
+  const { to, message } = await req.json()
 
-  const data = await res.json()
-  return NextResponse.json(data)
+  try {
+    const result = await client.messages.create({
+      body: message,
+      from: fromPhone,
+      to,
+    })
+
+    storeMessage(to, 'Suporte', message)
+
+    return NextResponse.json({ success: true, sid: result.sid })
+  } catch (err) {
+    console.error(err)
+    return NextResponse.json({ success: false, error: 'Failed to send message' }, { status: 500 })
+  }
 }
