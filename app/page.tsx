@@ -22,26 +22,13 @@ export default function Home() {
     const fetchMessages = async () => {
       const res = await fetch('/api/messages')
       const data = await res.json()
-      setMessages(Object.values(data.messages).flat())
+      setMessages(Object.values(data.messages).flat() as Message[])
     }
 
     fetchMessages()
     const interval = setInterval(fetchMessages, 5000)
     return () => clearInterval(interval)
   }, [])
-
-  const unreadMap: Record<string, boolean> = {}
-  messages.forEach(msg => {
-    if (msg.sender !== 'Suporte' && !resolvedSenders.includes(msg.sender)) {
-      unreadMap[msg.sender] = true
-    }
-  })
-
-  const uniqueSenders = Array.from(new Set(messages.map(m => m.sender))).filter(sender => !resolvedSenders.includes(sender))
-
-  const filteredMessages = selectedSender
-    ? messages.filter(m => m.sender === selectedSender || m.sender === 'Suporte')
-    : []
 
   const sendMessage = async () => {
     if (!newMessage.trim()) return
@@ -59,6 +46,19 @@ export default function Home() {
     setMessages([...messages, { sender: 'Suporte', text: newMessage, timestamp: new Date().toISOString() }])
     setNewMessage('')
   }
+
+  const unreadMap: Record<string, boolean> = {}
+  messages.forEach(msg => {
+    if (msg.sender !== 'Suporte' && !resolvedSenders.includes(msg.sender)) {
+      unreadMap[msg.sender] = true
+    }
+  })
+
+  const uniqueSenders = Array.from(new Set(messages.map(m => m.sender))).filter(sender => !resolvedSenders.includes(sender))
+
+  const filteredMessages = selectedSender
+    ? messages.filter(m => m.sender === selectedSender || m.sender === 'Suporte')
+    : []
 
   return (
     <div className="flex h-screen">
@@ -83,10 +83,7 @@ export default function Home() {
           {filteredMessages.map((msg, idx) => (
             <Card key={idx} className="mb-2">
               <CardContent className="p-2">
-                <p>
-                  <strong>{msg.sender}</strong>{' '}
-                  <span className="text-sm text-gray-500">({new Date(msg.timestamp).toLocaleString()})</span>
-                </p>
+                <p><strong>{msg.sender}</strong> <span className="text-sm text-gray-500">({new Date(msg.timestamp).toLocaleString()})</span></p>
                 <p>{msg.text}</p>
               </CardContent>
             </Card>
