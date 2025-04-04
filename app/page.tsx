@@ -64,19 +64,19 @@ export default function Home() {
     : []
 
   return (
-    <div className="flex h-screen font-sans">
-      {/* Painel esquerdo - Lista de clientes */}
+    <div className="flex h-screen font-sans bg-white">
+      {/* Painel lateral - lista de clientes */}
       <div className="w-1/4 bg-gray-100 p-4 border-r overflow-y-auto">
         <h2 className="text-lg font-bold mb-4">Clientes</h2>
         {uniqueSenders.length === 0 && (
-          <p className="text-sm text-gray-500">Nenhuma conversa iniciada.</p>
+          <p className="text-sm text-gray-500">Nenhuma conversa ativa.</p>
         )}
         {uniqueSenders.map(sender => (
           <div
             key={sender}
-            className={`p-3 rounded-md mb-2 cursor-pointer transition ${
-              selectedSender === sender ? 'bg-blue-300' : 'hover:bg-blue-200'
-            } ${unreadMap[sender] ? 'font-bold' : ''}`}
+            className={`p-2 rounded-md mb-2 cursor-pointer ${
+              selectedSender === sender ? 'bg-blue-300 font-bold' : 'hover:bg-blue-100'
+            }`}
             onClick={() => setSelectedSender(sender)}
           >
             {sender}
@@ -84,18 +84,16 @@ export default function Home() {
         ))}
       </div>
 
-      {/* Painel direito - Conversa */}
-      <div className="w-3/4 flex flex-col p-6">
+      {/* Painel direito - conversa do cliente */}
+      <div className="flex-1 flex flex-col p-6">
         {selectedSender ? (
           <>
-            <h2 className="text-xl font-semibold mb-4">Conversando com: <span className="text-blue-600">{selectedSender}</span></h2>
-
             <div className="flex-1 overflow-y-auto mb-4 space-y-2">
               {filteredMessages.map((msg, idx) => (
                 <Card key={idx}>
                   <CardContent className="p-3">
                     <p className="text-sm text-gray-600 mb-1">
-                      <strong>{msg.sender}</strong> —{" "}
+                      <strong>{msg.sender}</strong> —{' '}
                       <span>{new Date(msg.timestamp).toLocaleString()}</span>
                     </p>
                     <p>{msg.text}</p>
@@ -104,7 +102,7 @@ export default function Home() {
               ))}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex gap-2">
               <Input
                 className="flex-1"
                 placeholder="Digite sua mensagem..."
@@ -113,13 +111,18 @@ export default function Home() {
                 onKeyDown={e => e.key === 'Enter' && sendMessage()}
               />
               <Button onClick={sendMessage}>Enviar</Button>
-              <Button variant="destructive" onClick={() => setResolvedSenders([...resolvedSenders, selectedSender])}>
+              <Button
+                variant="destructive"
+                onClick={() => setResolvedSenders([...resolvedSenders, selectedSender])}
+              >
                 Marcar como resolvido
               </Button>
             </div>
           </>
         ) : (
-          <p className="text-gray-500">Selecione um cliente à esquerda para visualizar a conversa.</p>
+          <div className="flex items-center justify-center flex-1 text-gray-500">
+            Selecione um cliente à esquerda para iniciar a conversa.
+          </div>
         )}
       </div>
     </div>
