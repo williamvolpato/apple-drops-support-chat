@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { storeMessage, getMessages } from '@/lib/chatStore'
 
 export async function GET() {
-  const messages = getMessages()
+  const messages = await getMessages()
   return NextResponse.json({ messages })
 }
 
