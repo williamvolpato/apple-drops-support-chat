@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 interface Message {
   sender: string
@@ -9,6 +10,7 @@ interface Message {
 }
 
 export default function Home() {
+  const router = useRouter()
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [selectedSender, setSelectedSender] = useState<string | null>(null)
@@ -16,12 +18,18 @@ export default function Home() {
   const [unreadSenders, setUnreadSenders] = useState<Set<string>>(new Set())
 
   useEffect(() => {
+    const session = localStorage.getItem('authEmail')
+    if (session !== 'sms@happierpd.com') {
+      router.push('/login')
+      return
+    }
+
     const storedResolved = localStorage.getItem('resolvedSenders')
     const storedRead = localStorage.getItem('readSenders')
 
     if (storedResolved) setResolvedSenders(JSON.parse(storedResolved))
     if (storedRead) setUnreadSenders(new Set(JSON.parse(storedRead)))
-  }, [])
+  }, [router])
 
   useEffect(() => {
     const fetchMessages = async () => {
@@ -99,7 +107,6 @@ export default function Home() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: 'sans-serif' }}>
-      {/* Lateral esquerda */}
       <div style={{
         width: '25%',
         backgroundColor: '#f3f3f3',
@@ -138,7 +145,6 @@ export default function Home() {
         ))}
       </div>
 
-      {/* Área de conversa */}
       <div style={{ flex: 1, padding: '1rem', display: 'flex', flexDirection: 'column' }}>
         {selectedSender ? (
           <>
