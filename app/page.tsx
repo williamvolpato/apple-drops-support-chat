@@ -9,6 +9,7 @@ interface Message {
   sender: string
   text: string
   timestamp: string
+  unread?: boolean
 }
 
 export default function Home() {
@@ -19,18 +20,18 @@ export default function Home() {
 
   useEffect(() => {
     const fetchMessages = async () => {
-      const res = await fetch('/api/messages')
-      const data = await res.json()
-      const allMessages: Message[] = []
-
-      for (const phone in data.messages) {
-        allMessages.push(...data.messages[phone].map((msg: Message) => ({
-          ...msg,
-          sender: msg.sender === 'Cliente' ? phone : 'Suporte'
-        })))
+      try {
+        const res = await fetch('/api/messages')
+        const data = await res.json()
+        console.log('Mensagens carregadas:', data)
+        const allMessages = Object.entries(data.messages || {}).flatMap(([sender, msgs]) =>
+          (msgs as Message[]).map(msg => ({ ...msg, sender }))
+        )
+        console.log('Mensagens formatadas:', allMessages)
+        setMessages(allMessages)
+      } catch (error) {
+        console.error('Erro ao carregar mensagens:', error)
       }
-
-      setMessages(allMessages)
     }
 
     fetchMessages()
@@ -41,11 +42,14 @@ export default function Home() {
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedSender) return
 
-    await fetch('/api/send', {
+    const response = await fetch('/api/send', {
       method: 'POST',
       body: JSON.stringify({ to: selectedSender, message: newMessage }),
       headers: { 'Content-Type': 'application/json' },
     })
+
+    const data = await response.json()
+    console.log('Twilio response:', data)
 
     setMessages([...messages, {
       sender: 'Suporte',
@@ -62,9 +66,8 @@ export default function Home() {
     }
   })
 
-  const uniqueSenders = Array.from(
-    new Set(messages.map(m => m.sender).filter(s => s !== 'Suporte'))
-  ).filter(sender => !resolvedSenders.includes(sender))
+  const uniqueSenders = Array.from(new Set(messages.map(m => m.sender)))
+  // .filter(sender => !resolvedSenders.includes(sender)) // comentado temporariamente para debug
 
   const filteredMessages = selectedSender
     ? messages.filter(m => m.sender === selectedSender || m.sender === 'Suporte')
@@ -93,16 +96,12 @@ export default function Home() {
           {filteredMessages.map((msg, idx) => (
             <Card key={idx} className="mb-2">
               <CardContent className="p-2">
-                <p>
-                  <strong>{msg.sender}</strong>{' '}
-                  <span className="text-sm text-gray-500">({new Date(msg.timestamp).toLocaleString()})</span>
-                </p>
+                <p><strong>{msg.sender}</strong> <span className="text-sm text-gray-500">({new Date(msg.timestamp).toLocaleString()})</span></p>
                 <p>{msg.text}</p>
               </CardContent>
             </Card>
           ))}
         </div>
-
         {selectedSender && (
           <div className="mt-4 flex gap-2">
             <Input
