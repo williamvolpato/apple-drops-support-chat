@@ -1,13 +1,21 @@
 import { NextResponse } from 'next/server'
-import { storeMessage, getMessages } from '@/lib/chatStore'
-import fs from 'fs/promises'
-import path from 'path'
-
-const dataPath = path.join(process.cwd(), 'data/chatData.json')
+import {
+  storeMessage,
+  getMessages,
+  getResolvedSenders,
+  getReadSenders
+} from '@/lib/chatStore'
 
 export async function GET() {
   const messages = await getMessages()
-  return NextResponse.json({ messages })
+  const resolvedSenders = await getResolvedSenders()
+  const readSenders = await getReadSenders()
+
+  return NextResponse.json({
+    messages,
+    resolvedSenders,
+    readSenders
+  })
 }
 
 export async function POST(req: Request) {
