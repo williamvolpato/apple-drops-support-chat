@@ -94,6 +94,17 @@ export default function Home() {
     router.push('/login')
   }
 
+  const resetChatData = async () => {
+    const confirmReset = window.confirm('Tem certeza que deseja resetar todas as conversas, resolvidos e lidos?')
+    if (!confirmReset) return
+
+    await fetch('/api/messages', { method: 'DELETE' })
+    setMessages([])
+    setResolvedSenders([])
+    setUnreadSenders(new Set())
+    setSelectedSender(null)
+  }
+
   const markAsResolved = async () => {
     if (!selectedSender) return
     const updated = [...resolvedSenders, selectedSender]
@@ -172,7 +183,13 @@ export default function Home() {
       </div>
 
       <div style={{ flex: 1, padding: '1rem', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+          <button
+            onClick={resetChatData}
+            style={{ padding: '0.5rem 1rem', backgroundColor: '#dc3545', color: '#fff', border: 'none' }}
+          >
+            Resetar tudo
+          </button>
           <button
             onClick={logout}
             style={{ padding: '0.5rem 1rem', backgroundColor: '#999', color: '#fff', border: 'none' }}
