@@ -3,7 +3,8 @@ import {
   storeMessage,
   getMessages,
   getResolvedSenders,
-  getReadSenders
+  getReadSenders,
+  resetData
 } from '@/lib/chatStore'
 
 export async function GET() {
@@ -28,4 +29,10 @@ export async function POST(req: Request) {
   await storeMessage(From, 'Cliente', Body)
 
   return NextResponse.json({ success: true })
+}
+
+// NOVO: Rota DELETE para resetar todos os dados
+export async function DELETE() {
+  await resetData()
+  return NextResponse.json({ success: true, message: 'Chat resetado com sucesso' })
 }
