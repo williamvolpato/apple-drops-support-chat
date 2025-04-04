@@ -23,7 +23,7 @@ export default function Home() {
     const fetchMessages = async () => {
       const res = await fetch('/api/messages')
       const data = await res.json()
-      const allMessages: Message[] = Object.values(data.messages || {}).flat()
+      const allMessages = Object.values(data.messages || {}).flat() as Message[]
       setMessages(allMessages)
 
       const unread = new Set<string>()
