@@ -21,9 +21,8 @@ export default function Home() {
   useEffect(() => {
     const session = localStorage.getItem('authEmail')
     const loginDate = localStorage.getItem('loginDate')
-
     const now = new Date().getTime()
-    const limit = 24 * 60 * 60 * 1000 // 24h
+    const limit = 24 * 60 * 60 * 1000
 
     if (
       session !== 'sms@happierpd.com' ||
@@ -38,11 +37,14 @@ export default function Home() {
 
     setIsAuthenticated(true)
 
-    const storedResolved = localStorage.getItem('resolvedSenders')
-    const storedRead = localStorage.getItem('readSenders')
+    const fetchInitialState = async () => {
+      const res = await fetch('/api/messages')
+      const data = await res.json()
+      setResolvedSenders(data.resolvedSenders)
+      setUnreadSenders(new Set(data.readSenders))
+    }
 
-    if (storedResolved) setResolvedSenders(JSON.parse(storedResolved))
-    if (storedRead) setUnreadSenders(new Set(JSON.parse(storedRead)))
+    fetchInitialState()
   }, [router])
 
   useEffect(() => {
@@ -52,15 +54,12 @@ export default function Home() {
       const allMessages = Object.values(data.messages || {}).flat() as Message[]
       setMessages(allMessages)
 
-      const storedRead = localStorage.getItem('readSenders')
-      const readSet = storedRead ? new Set(JSON.parse(storedRead)) : new Set()
-
       const unread = new Set<string>()
       allMessages.forEach(msg => {
         if (
           msg.sender !== 'Suporte' &&
           !resolvedSenders.includes(msg.sender) &&
-          !readSet.has(msg.sender)
+          !data.readSenders.includes(msg.sender)
         ) {
           unread.add(msg.sender)
         }
@@ -95,25 +94,30 @@ export default function Home() {
     router.push('/login')
   }
 
-  const markAsResolved = () => {
+  const markAsResolved = async () => {
     if (!selectedSender) return
     const updated = [...resolvedSenders, selectedSender]
     setResolvedSenders(updated)
-    localStorage.setItem('resolvedSenders', JSON.stringify(updated))
+    await fetch('/api/messages/resolved', {
+      method: 'POST',
+      body: JSON.stringify(updated),
+      headers: { 'Content-Type': 'application/json' },
+    })
     setSelectedSender(null)
   }
 
-  const clearConversation = () => {
+  const clearConversation = async () => {
     if (!selectedSender) return
-    const storedRead = localStorage.getItem('readSenders')
-    const readSet = storedRead ? new Set(JSON.parse(storedRead)) : new Set()
-    readSet.add(selectedSender)
-    localStorage.setItem('readSenders', JSON.stringify(Array.from(readSet)))
-    setUnreadSenders(prev => {
-      const updated = new Set(prev)
-      updated.delete(selectedSender)
-      return updated
+    const updated = new Set(unreadSenders)
+    updated.delete(selectedSender)
+    setUnreadSenders(updated)
+
+    await fetch('/api/messages/read', {
+      method: 'POST',
+      body: JSON.stringify(Array.from(updated)),
+      headers: { 'Content-Type': 'application/json' },
     })
+
     setSelectedSender(null)
   }
 
@@ -143,14 +147,13 @@ export default function Home() {
             key={sender}
             onClick={() => {
               setSelectedSender(sender)
-              const storedRead = localStorage.getItem('readSenders')
-              const readSet = storedRead ? new Set(JSON.parse(storedRead)) : new Set()
-              readSet.add(sender)
-              localStorage.setItem('readSenders', JSON.stringify(Array.from(readSet)))
-              setUnreadSenders(prev => {
-                const copy = new Set(prev)
-                copy.delete(sender)
-                return copy
+              const updated = new Set(unreadSenders)
+              updated.delete(sender)
+              setUnreadSenders(updated)
+              fetch('/api/messages/read', {
+                method: 'POST',
+                body: JSON.stringify(Array.from(updated)),
+                headers: { 'Content-Type': 'application/json' },
               })
             }}
             style={{
@@ -242,4 +245,4 @@ export default function Home() {
       </div>
     </div>
   )
-} 
+}
