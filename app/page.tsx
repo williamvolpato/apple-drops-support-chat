@@ -128,12 +128,33 @@ export default function Home() {
                 onKeyDown={e => e.key === 'Enter' && sendMessage()}
                 style={{ flex: 1, padding: '0.5rem' }}
               />
-              <button onClick={sendMessage} style={{ padding: '0.5rem 1rem' }}>Enviar</button>
+              <button onClick={sendMessage} style={{ padding: '0.5rem 1rem' }}>
+                Enviar
+              </button>
               <button
-                onClick={() => setResolvedSenders([...resolvedSenders, selectedSender])}
-                style={{ padding: '0.5rem 1rem', backgroundColor: '#dc3545', color: '#fff', border: 'none' }}
+                onClick={() => {
+                  setResolvedSenders([...resolvedSenders, selectedSender])
+                  setSelectedSender(null)
+                }}
+                style={{
+                  padding: '0.5rem 1rem',
+                  backgroundColor: '#dc3545',
+                  color: '#fff',
+                  border: 'none'
+                }}
               >
                 Marcar como resolvido
+              </button>
+              <button
+                onClick={() => setSelectedSender(null)}
+                style={{
+                  padding: '0.5rem 1rem',
+                  backgroundColor: '#6c757d',
+                  color: '#fff',
+                  border: 'none'
+                }}
+              >
+                Limpar conversa
               </button>
             </div>
           </>
