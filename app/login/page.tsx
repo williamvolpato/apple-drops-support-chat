@@ -19,7 +19,7 @@ export default function LoginPage() {
   const handleLogin = () => {
     if (email === 'sms@happierpd.com' && password === 'GustavoHappier') {
       localStorage.setItem('authEmail', email)
-      localStorage.setItem('loginDate', new Date().toISOString())
+      localStorage.setItem('loginDate', String(Date.now())) // <-- AQUI O AJUSTE
       router.push('/')
     } else {
       setError('E-mail ou senha inválidos')
@@ -82,4 +82,3 @@ export default function LoginPage() {
     </div>
   )
 }
- 
