@@ -10,6 +10,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing from or body' }, { status: 400 })
   }
 
-  storeMessage(from, from, body)
+  await storeMessage(from, from, body)
   return NextResponse.json({ success: true })
 }
