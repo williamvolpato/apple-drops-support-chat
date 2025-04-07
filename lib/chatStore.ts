@@ -1,7 +1,5 @@
-import fs from 'fs/promises'
-import path from 'path'
-
-const dataPath = path.resolve(process.cwd(), 'data/chatData.json')
+const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL!
+const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN!
 
 export type Message = {
   sender: string
@@ -15,59 +13,68 @@ type ChatData = {
   readSenders: string[]
 }
 
-// Função para ler os dados do arquivo
-async function readData(): Promise<ChatData> {
-  try {
-    const file = await fs.readFile(dataPath, 'utf-8')
-    return JSON.parse(file)
-  } catch (err) {
-    return { messages: {}, resolvedSenders: [], readSenders: [] }
-  }
+// Helpers para ler/escrever no Redis
+async function getData(): Promise<ChatData> {
+  const res = await fetch(`${UPSTASH_URL}/get/chatData`, {
+    headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` },
+    cache: 'no-store',
+  })
+
+  if (!res.ok) return { messages: {}, resolvedSenders: [], readSenders: [] }
+
+  const json = await res.json()
+  return JSON.parse(json.result)
 }
 
-// Função para escrever os dados no arquivo
-async function writeData(data: ChatData) {
-  await fs.writeFile(dataPath, JSON.stringify(data, null, 2))
+async function setData(data: ChatData) {
+  await fetch(`${UPSTASH_URL}/set/chatData`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${UPSTASH_TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ value: JSON.stringify(data) }),
+  })
 }
 
 // Armazena uma nova mensagem
 export async function storeMessage(phone: string, sender: string, text: string) {
-  const data = await readData()
+  const data = await getData()
   if (!data.messages[phone]) data.messages[phone] = []
   data.messages[phone].push({ sender, text, timestamp: new Date().toISOString() })
-  await writeData(data)
+  await setData(data)
 }
 
 // Retorna todas as mensagens salvas
 export async function getMessages() {
-  const data = await readData()
+  const data = await getData()
   return data.messages
 }
 
 // Retorna a lista de contatos marcados como resolvidos
 export async function getResolvedSenders(): Promise<string[]> {
-  const data = await readData()
+  const data = await getData()
   return data.resolvedSenders
 }
 
 // Retorna a lista de contatos lidos
 export async function getReadSenders(): Promise<string[]> {
-  const data = await readData()
+  const data = await getData()
   return data.readSenders
 }
 
 // Atualiza a lista de contatos resolvidos
 export async function updateResolvedSenders(list: string[]) {
-  const data = await readData()
+  const data = await getData()
   data.resolvedSenders = list
-  await writeData(data)
+  await setData(data)
 }
 
 // Atualiza a lista de contatos lidos
 export async function updateReadSenders(list: string[]) {
-  const data = await readData()
+  const data = await getData()
   data.readSenders = list
-  await writeData(data)
+  await setData(data)
 }
 
 // Reseta todos os dados do chat
@@ -77,5 +84,5 @@ export async function resetData() {
     resolvedSenders: [],
     readSenders: []
   }
-  await writeData(emptyData)
+  await setData(emptyData)
 }
