@@ -2,37 +2,43 @@
 import { REDIS } from "./redis";
 
 export type Message = {
-  sender: string;   // "client" | "agent"
+  sender: string;     // "client" | "agent"
   text: string;
-  timestamp: string; // ISO string
+  timestamp: string;  // ISO string
 };
 
 // ============================
-// Chaves no Redis (Opção 2)
+// Chaves no Redis
 // ============================
 // SET: lista de clientes (telefones)
-const CLIENTS_SET = "support:clients";
+const CLIENTS_SET   = "support:clients";
 // SET: contatos resolvidos
-const RESOLVED_SET = "support:resolved";
+const RESOLVED_SET  = "support:resolved";
 // SET: contatos lidos
-const READ_SET = "support:read";
+const READ_SET      = "support:read";
 // MENSAGENS por contato (valor JSON: Message[])
 const msgKey = (phone: string) => `support:messages:${phone}`;
 
 // ============================
 // Helpers internos
 // ============================
+
+// Garante que o retorno do smembers seja sempre string[]
+async function smembersArray(key: string): Promise<string[]> {
+  const raw = await REDIS.smembers(key) as unknown;
+  if (Array.isArray(raw)) return raw as string[];
+  if (typeof raw === "string" && raw.length > 0) return [raw];
+  return [];
+}
+
 async function addClient(phone: string) {
   if (!phone) return;
   await REDIS.sadd(CLIENTS_SET, phone);
 }
 
 async function getClients(): Promise<string[]> {
-  // Normaliza o retorno do Upstash para sempre ser string[]
-  const result = await REDIS.smembers(CLIENTS_SET);
-  return Array.isArray(result) ? (result as string[]) : [];
+  return await smembersArray(CLIENTS_SET);
 }
-
 
 async function getMessagesByPhone(phone: string): Promise<Message[]> {
   const arr = await REDIS.get<Message[]>(msgKey(phone));
@@ -44,7 +50,7 @@ async function setMessagesByPhone(phone: string, messages: Message[]) {
 }
 
 // ============================
-// API pública (mantém assinaturas)
+// API pública
 // ============================
 
 // Armazena uma nova mensagem
@@ -66,7 +72,6 @@ export async function getMessages(): Promise<Record<string, Message[]>> {
   const result: Record<string, Message[]> = {};
   const clients = await getClients();
 
-  // Busca as mensagens de cada cliente
   for (const phone of clients) {
     result[phone] = await getMessagesByPhone(phone);
   }
@@ -75,17 +80,16 @@ export async function getMessages(): Promise<Record<string, Message[]>> {
 
 // Retorna a lista de contatos marcados como resolvidos
 export async function getResolvedSenders(): Promise<string[]> {
-  return (await REDIS.smembers<string>(RESOLVED_SET)) ?? [];
+  return await smembersArray(RESOLVED_SET);
 }
 
 // Retorna a lista de contatos lidos
 export async function getReadSenders(): Promise<string[]> {
-  return (await REDIS.smembers<string>(READ_SET)) ?? [];
+  return await smembersArray(READ_SET);
 }
 
 // Atualiza a lista de contatos resolvidos (substitui o SET)
 export async function updateResolvedSenders(list: string[]) {
-  // Zera e recria o SET
   await REDIS.del(RESOLVED_SET);
   if (list && list.length) {
     await REDIS.sadd(RESOLVED_SET, ...list);
@@ -104,13 +108,11 @@ export async function updateReadSenders(list: string[]) {
 export async function resetData() {
   const clients = await getClients();
 
-  // Apaga todas as mensagens por cliente
   if (clients.length) {
     const delKeys = clients.map((p) => msgKey(p));
     await REDIS.del(...delKeys);
   }
 
-  // Limpa os SETs
   await REDIS.del(CLIENTS_SET);
   await REDIS.del(RESOLVED_SET);
   await REDIS.del(READ_SET);
