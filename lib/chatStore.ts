@@ -28,8 +28,11 @@ async function addClient(phone: string) {
 }
 
 async function getClients(): Promise<string[]> {
-  return (await REDIS.smembers<string>(CLIENTS_SET)) ?? [];
+  // Normaliza o retorno do Upstash para sempre ser string[]
+  const result = await REDIS.smembers(CLIENTS_SET);
+  return Array.isArray(result) ? (result as string[]) : [];
 }
+
 
 async function getMessagesByPhone(phone: string): Promise<Message[]> {
   const arr = await REDIS.get<Message[]>(msgKey(phone));
